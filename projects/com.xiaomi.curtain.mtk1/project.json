@@ -1,0 +1,11 @@
+{
+        "package_path": "com.xiaomi.curtain.mtk1",
+        "min_sdk_api_level":10068,
+        "developer_id": "",
+        "version_code":1,
+        "create_timestamp": "1658213830506",
+        "entrance_scene":{
+            "action_ids":[],
+            "trigger_ids":[]
+        }
+    }

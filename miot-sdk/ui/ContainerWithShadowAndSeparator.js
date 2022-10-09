@@ -1,0 +1,2 @@
+import ContainerWithShadowAndSeparator from 'mhui-rn/dist/modules/containerWithShadowAndSeparator/ContainerWithShadowAndSeparator';
+export default ContainerWithShadowAndSeparator;

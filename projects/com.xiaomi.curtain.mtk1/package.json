@@ -1,0 +1,8 @@
+{
+    "name": "project-com-xiaomi-curtain-mtk1",
+    "version": "1.0.68",
+    "scripts": {
+        "start": "node ../../bin/runProject.js"
+    },
+    "dependencies": {}
+}

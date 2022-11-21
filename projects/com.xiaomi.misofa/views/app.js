@@ -7,9 +7,10 @@ import {
   Platform,
   Dimensions,
   Animated,
+  ScrollView,
   Slider,
   DeviceEventEmitter,
-  ShadowPropTypesIOS
+  ShadowPropTypesIOS,
 } from "react-native";
 import { SafeAreaView } from "react-navigation";
 import { Device, Service, DeviceEvent, PackageEvent, Host } from "miot";
@@ -33,7 +34,7 @@ import {
   getInstanceFromCache,
   getInstanceFromNet,
   formatTimerTime,
-  fixNum
+  fixNum,
 } from "../modules/consts";
 
 import Protocol from "../modules/protocol";
@@ -98,7 +99,7 @@ export default class App extends Component {
     showDialog: false,
     dialogTimeout: 0,
     dialogTitle: "",
-    status: {}
+    status: {},
   };
 
   initProtocol = () => {
@@ -134,7 +135,7 @@ export default class App extends Component {
       this.setState({
         showDialog: false,
         dialogTimeout: 0,
-        dialogTitle: ""
+        dialogTitle: "",
       });
     }, 550);
   };
@@ -143,7 +144,7 @@ export default class App extends Component {
     this.setState({
       showDialog: true,
       dialogTimeout: 1200,
-      dialogTitle: tip
+      dialogTitle: tip,
     });
     this.timerTips && clearTimeout(this.timerTips);
     this.timerTips = setTimeout(() => {
@@ -156,7 +157,7 @@ export default class App extends Component {
     this.stateAnimation && this.stateAnimation.stop();
     this.stateAnimation = Animated.timing(this.state.containerBackgroundColor, {
       toValue: end,
-      duration: 550
+      duration: 550,
     });
     this.state.containerBackgroundColor.setValue(start);
     this.stateAnimation.start((e) => {
@@ -170,13 +171,13 @@ export default class App extends Component {
     this.stateAnimation && this.stateAnimation.stop();
     this.stateAnimation = Animated.timing(this.state.containerBackgroundColor, {
       toValue: on ? 1 : 0,
-      duration: 1000
+      duration: 1000,
     });
     this.stateAnimation.start(() => {
       this.isHandling = false;
       this.setState({
         on,
-        isHandling: false
+        isHandling: false,
       });
       this.updateTimerState();
       this.updateNavigationState();
@@ -188,14 +189,14 @@ export default class App extends Component {
       return;
     }
     this.setState({
-      on
+      on,
     });
     this.updateTimerState();
     this.updateNavigationState();
     this.stateAnimation && this.stateAnimation.stop();
     this.stateAnimation = Animated.timing(this.state.containerBackgroundColor, {
       toValue: on ? 1 : 0,
-      duration: 1000
+      duration: 1000,
     });
     this.stateAnimation.start();
   };
@@ -204,7 +205,7 @@ export default class App extends Component {
     console.log(this.props.value);
     this.setState({
       count: nextProp.value,
-      jiuzhi: this.props.value
+      jiuzhi: this.props.value,
     });
   }
 
@@ -222,7 +223,7 @@ export default class App extends Component {
       return;
     }
     this.setState({
-      isHandling: true
+      isHandling: true,
     });
     if (!newStatus[cmdParam]) {
       return;
@@ -230,7 +231,7 @@ export default class App extends Component {
     const controlParams = Object.assign({
       piid: newStatus[cmdParam].piid,
       siid: newStatus[cmdParam].siid,
-      value: cmdValue
+      value: cmdValue,
     });
     console.log(controlParams, "发送控制命令参数-------------");
     Service.spec
@@ -238,7 +239,7 @@ export default class App extends Component {
       .then((res) => {
         let code = res[0].code;
         this.setState({
-          isHandling: false
+          isHandling: false,
         });
         // 1表示处理中，这里不处理，等消息推送
         if (code === 1) {
@@ -257,14 +258,14 @@ export default class App extends Component {
       })
       .catch((error) => {
         this.setState({
-          isHandling: false
+          isHandling: false,
         });
         console.log(error, "控制命令失败结果-------------");
         this.showFailTips(LocalizedString.failed());
       })
       .finally(() => {
         this.setState({
-          isHandling: false
+          isHandling: false,
         });
       });
   };
@@ -299,7 +300,7 @@ export default class App extends Component {
             // this.control({ "target-trip": status["cur-trip"].value });
           }
           this.setState({
-            status
+            status,
           });
         }
         if (typeof cb === "function") {
@@ -336,14 +337,14 @@ export default class App extends Component {
 
   updateNavigationState = () => {
     this.props.navigation.setParams({
-      barColor: this.state.on ? "white" : "black"
+      barColor: this.state.on ? "white" : "black",
     });
   };
 
   getTimerList = () => {
     Service.scene
       .loadTimerScenes(DeviceID, {
-        identify: DeviceID
+        identify: DeviceID,
       })
       .then((_) => {
         this.timers = _;
@@ -369,7 +370,7 @@ export default class App extends Component {
       if (scene.timer.setting.timer_type !== "1") {
         return (
           on ? LocalizedString.timingTipOff : LocalizedString.timingTipOn
-        )(`${ fixNum(time.getHours()) }:${ fixNum(time.getMinutes()) }`);
+        )(`${fixNum(time.getHours())}:${fixNum(time.getMinutes())}`);
       }
       let diffMinutes = Math.ceil((time.getTime() - Date.now()) / 1000 / 60);
       let hours = Math.floor(diffMinutes / 60);
@@ -392,7 +393,7 @@ export default class App extends Component {
         return {
           timer: item,
           sceneID: item.sceneID,
-          time: formatTimerTime(item.setting[on ? "off_time" : "on_time"])
+          time: formatTimerTime(item.setting[on ? "off_time" : "on_time"]),
         };
       })
       .filter((item) => {
@@ -419,7 +420,7 @@ export default class App extends Component {
         return {
           timer: item,
           sceneID: item.sceneID,
-          time: formatTimerTime(item.setting[on ? "off_time" : "on_time"])
+          time: formatTimerTime(item.setting[on ? "off_time" : "on_time"]),
         };
       })
       .filter((item) => {
@@ -441,14 +442,14 @@ export default class App extends Component {
       !hasTiming && !hasCountdown
         ? null
         : [...timingScenes, ...countdownScenes].sort((a, b) => {
-          return a.time > b.time ? 1 : -1;
-        })[0];
+            return a.time > b.time ? 1 : -1;
+          })[0];
 
     let timerInfo = !lastScene ? "" : getTimerInfo(lastScene, on);
     this.setState({
       timingActive: hasTiming,
       countdownActive: hasCountdown,
-      timerInfo
+      timerInfo,
     });
   };
 
@@ -458,11 +459,11 @@ export default class App extends Component {
     }
     let switchOnProps = Object.assign({}, this.SwitchBaseProps, {
       value: true,
-      did: DeviceID
+      did: DeviceID,
     });
     let switchOffProps = Object.assign({}, this.SwitchBaseProps, {
       value: false,
-      did: DeviceID
+      did: DeviceID,
     });
     Host.ui.openTimerSettingPageWithVariousTypeParams(
       "set_properties",
@@ -500,7 +501,7 @@ export default class App extends Component {
     let props = [];
     for (const key in paramInfos) {
       const param = paramInfos[key];
-      props.push(`prop.${ param.siid }.${ param.piid }`);
+      props.push(`prop.${param.siid}.${param.piid}`);
     }
     if (!props.length) {
       return;
@@ -523,7 +524,7 @@ export default class App extends Component {
     const newStatus = { ...this.state.status };
     for (const key in newStatus) {
       const param = newStatus[key];
-      const value = message.get(`prop.${ param.siid }.${ param.piid }`);
+      const value = message.get(`prop.${param.siid}.${param.piid}`);
       if (value) {
         // 当当前行程发生变化、目前行程与之同步
         if (
@@ -567,7 +568,7 @@ export default class App extends Component {
       (params) => {
         if (params && params.needUpgrade) {
           this.props.navigation.setParams({
-            showDot: true
+            showDot: true,
           });
         }
       }
@@ -610,7 +611,7 @@ export default class App extends Component {
       showDialog,
       dialogTimeout,
       dialogTitle,
-      status
+      status,
     } = this.state;
     let deviceTitle =
       timerInfo ||
@@ -632,9 +633,9 @@ export default class App extends Component {
     let styleBgExtra =
       on && supportBrightness
         ? `'hsl(236, 84%, ${
-          getPercent(brightness, brightnessMin, brightnessMax, 0.6, 0.65) *
+            getPercent(brightness, brightnessMin, brightnessMax, 0.6, 0.65) *
             100
-        }%)'`
+          }%)'`
         : "#5B64F1";
     let deviceProps = {
       on,
@@ -644,7 +645,7 @@ export default class App extends Component {
       brightnessMax,
       temperature,
       temperatureMin,
-      temperatureMax
+      temperatureMax,
     };
     let sliderTextExtra = on ? Styles.sliderTextOn : Styles.sliderTextOff;
     const isOn = status["on"] && status["on"].value;
@@ -776,97 +777,100 @@ export default class App extends Component {
         on={mode === 6}
         disabled={!!this.isHandling}
         onPress={() => this.control({ mode: 6 })}
-      />
+      />,
     ];
 
     return (
       <Animated.View style={[Styles.container]}>
         <SafeAreaView style={Styles.safearea}>
           <Navigator navigation={this.props.navigation} />
-          <View style={Styles.containerInner}>
-            <View style={Styles.main}>
-              <View style={Styles.current}>
-                <View style={Styles.currentLeft}>
-                  <Text style={Styles.currentWord}>
-                    {PluginStrings.currentTrip}
-                  </Text>
-                  <Text style={Styles.currentRate}>
-                    {current > -1 ? current : "--"}{" "}
-                    <Text style={Styles.unit}>%</Text>
-                  </Text>
+          <ScrollView>
+            <View style={Styles.containerInner}>
+              <View style={Styles.main}>
+                <View style={Styles.current}>
+                  <View style={Styles.currentLeft}>
+                    <Text style={Styles.currentWord}>
+                      {PluginStrings.currentTrip}
+                    </Text>
+                    <Text style={Styles.currentRate}>
+                      {current > -1 ? current : "--"}{" "}
+                      <Text style={Styles.unit}>%</Text>
+                    </Text>
+                  </View>
+                  <View style={Styles.currentRight}>
+                    <Image style={Styles.currentImg} source={currentBg} />
+                  </View>
                 </View>
-                <View style={Styles.currentRight}>
-                  <Image style={Styles.currentImg} source={currentBg} />
+                <View style={Styles.startAndPause}>
+                  <View
+                    style={
+                      isOn
+                        ? Styles.startAndPause_isStart
+                        : Styles.startAndPause_isPause
+                    }
+                  >
+                    <StartButton
+                      on={isOn}
+                      disabled={!!this.isHandling}
+                      title={PluginStrings.start}
+                      direction="row"
+                      onPress={() => this.switch(true)}
+                    />
+                  </View>
+                  <View style={Styles.startAndPause_line}></View>
+                  <View
+                    style={
+                      !isOn
+                        ? Styles.startAndPause_isStart
+                        : Styles.startAndPause_isPause
+                    }
+                  >
+                    <PauseButton
+                      on={!isOn}
+                      disabled={!!this.isHandling}
+                      title={PluginStrings.pause}
+                      direction="row"
+                      onPress={() => this.switch(false)}
+                    />
+                  </View>
                 </View>
-              </View>
-              <View style={Styles.startAndPause}>
-                <View
-                  style={
-                    isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <StartButton
-                    on={isOn}
-                    disabled={!!this.isHandling}
-                    title={PluginStrings.start}
-                    direction="row"
-                    onPress={() => this.switch(true)}
+                <View style={Styles.modes}>
+                  {ModeButtons.map((ModeBtn, i) => {
+                    return (
+                      <View key={`${i}mode`} style={Styles.modeBtn}>
+                        {ModeBtn}
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={Styles.target}>
+                  <View style={Styles.targetTitle}>
+                    <Text style={Styles.targetText}>
+                      {PluginStrings.targetTrip}
+                    </Text>
+                    <Text style={{ ...Styles.targetValue }}>丨</Text>
+                    <Text style={Styles.targetValue}>{targetValue}%</Text>
+                  </View>
+                  <SlideGear
+                    // key={current + targetValue}
+                    containerStyle={{
+                      width: "100%",
+                      marginTop: adjustSize(22),
+                    }}
+                    onSlidingComplete={(value) => {
+                      this.control({ "target-trip": value });
+                    }}
+                    value={targetValue}
+                    optionMin={0}
+                    optionMax={100}
+                    optionStep={1}
                   />
                 </View>
-                <View style={Styles.startAndPause_line}></View>
-                <View
-                  style={
-                    !isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <PauseButton
-                    on={!isOn}
-                    disabled={!!this.isHandling}
-                    title={PluginStrings.pause}
-                    direction="row"
-                    onPress={() => this.switch(false)}
-                  />
-                </View>
-              </View>
-              <View style={Styles.modes}>
-                {ModeButtons.map((ModeBtn, i) => {
-                  return (
-                    <View key={`${ i }mode`} style={Styles.modeBtn}>
-                      {ModeBtn}
-                    </View>
-                  );
-                })}
-              </View>
-              <View style={Styles.target}>
-                <View style={Styles.targetTitle}>
-                  <Text style={Styles.targetText}>
-                    {PluginStrings.targetTrip}
-                  </Text>
-                  <Text style={{ ...Styles.targetValue }}>丨</Text>
-                  <Text style={Styles.targetValue}>{targetValue}%</Text>
-                </View>
-                <SlideGear
-                  key={current + mode + targetValue}
-                  containerStyle={{
-                    width: "100%",
-                    marginTop: adjustSize(22)
-                  }}
-                  onSlidingComplete={(value) => {
-                    this.control({ "target-trip": value });
-                  }}
-                  value={targetValue}
-                  optionMin={0}
-                  optionMax={100}
-                  optionStep={1}
-                />
               </View>
             </View>
-          </View>
+          </ScrollView>
         </SafeAreaView>
+
         <LoadingDialog
           visible={showDialog}
           message={dialogTitle}
@@ -881,11 +885,11 @@ const Styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "space-evenly",
-    alignItems: "center"
+    alignItems: "center",
   },
   safearea: {
     flex: 1,
-    width: "100%"
+    width: "100%",
   },
   containerInner: {
     flex: 1,
@@ -896,81 +900,81 @@ const Styles = StyleSheet.create({
     marginTop: 0,
     marginBottom: adjustSize(40),
     paddingLeft: adjustSize(12),
-    paddingRight: adjustSize(12)
+    paddingRight: adjustSize(12),
   },
   main: {
-    flex: 1
+    flex: 1,
   },
   sliders: {
     marginTop: adjustSize(-15),
-    marginBottom: adjustSize(30)
+    marginBottom: adjustSize(30),
   },
   sliderWrap: {
     justifyContent: "center",
     alignItems: "center",
     flexDirection: "row",
-    marginTop: adjustSize(29)
+    marginTop: adjustSize(29),
   },
   sliderIconWrap: {
     width: adjustSize(60),
-    alignItems: "flex-end"
+    alignItems: "flex-end",
   },
   sliderIcon: {
     width: adjustSize(20),
-    height: adjustSize(20)
+    height: adjustSize(20),
   },
   slider: {
     width: adjustSize(203),
     height: adjustSize(21),
     // backgroundColor: '#f00',
-    marginHorizontal: adjustSize(5)
+    marginHorizontal: adjustSize(5),
   },
   sliderText: {
     width: adjustSize(60),
     fontSize: adjustSize(12),
     color: "#ddd",
-    fontFamily: "MI-LANTING--GBK1-Light"
+    fontFamily: "MI-LANTING--GBK1-Light",
   },
   sliderTextOn: {
-    color: "#fff"
+    color: "#fff",
   },
   sliderTextOff: {
-    color: "#ddd"
+    color: "#ddd",
   },
   buttons: {
     width: adjustSize(321),
     flexDirection: "row",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
   },
   current: {
     display: "flex",
-    flexDirection: "row"
+    flexDirection: "row",
   },
   currentWord: {
     color: "#000000",
     opacity: 0.6,
-    fontSize: adjustSize(14)
+    fontSize: adjustSize(14),
   },
   currentRate: {
     color: "#000000",
     fontSize: adjustSize(50),
-    marginTop: adjustSize(12)
+    marginTop: adjustSize(12),
   },
   unit: {
-    fontSize: adjustSize(24)
+    fontSize: adjustSize(24),
   },
   currentImg: {
     width: adjustSize(160),
-    height: adjustSize(120)
+    height: adjustSize(120),
   },
   currentLeft: {
     paddingLeft: adjustSize(36),
     width: "50%",
-    justifyContent: "center"
+    justifyContent: "center",
     // alignItems: "center"
   },
   currentRight: {
-    width: "50%"
+    width: "50%",
   },
   startAndPause: {
     marginTop: adjustSize(24),
@@ -979,7 +983,7 @@ const Styles = StyleSheet.create({
     borderRadius: adjustSize(12),
     display: "flex",
     flexDirection: "row",
-    position: "relative"
+    position: "relative",
   },
   startAndPause_line: {
     position: "absolute",
@@ -988,7 +992,7 @@ const Styles = StyleSheet.create({
     left: "50%",
     marginLeft: adjustSize(-0.5),
     backgroundColor: "rgba(229,229,229,1)",
-    top: adjustSize(20)
+    top: adjustSize(20),
   },
   startAndPause_isStart: {
     width: "50%",
@@ -997,7 +1001,7 @@ const Styles = StyleSheet.create({
     fontSize: adjustSize(13),
     display: "flex",
     flexDirection: "row",
-    color: "#999999"
+    color: "#999999",
   },
   startAndPause_isPause: {
     width: "50%",
@@ -1006,25 +1010,25 @@ const Styles = StyleSheet.create({
     fontSize: adjustSize(13),
     color: "#999999",
     display: "flex",
-    flexDirection: "row"
+    flexDirection: "row",
   },
   currentStartText: {
     fontSize: adjustSize(13),
     color: "#999999",
-    marginLeft: adjustSize(16)
+    marginLeft: adjustSize(16),
   },
   currentPauseText: {
     fontSize: adjustSize(13),
     color: "#999999",
-    marginLeft: adjustSize(16)
+    marginLeft: adjustSize(16),
   },
   currentStartImage: {
     width: adjustSize(40),
-    height: adjustSize(40)
+    height: adjustSize(40),
   },
   currentPauseImage: {
     width: adjustSize(40),
-    height: adjustSize(40)
+    height: adjustSize(40),
   },
   modes: {
     width: "100%",
@@ -1037,16 +1041,16 @@ const Styles = StyleSheet.create({
     paddingTop: adjustSize(8),
     paddingBottom: adjustSize(12),
     paddingLeft: adjustSize(10),
-    paddingRight: adjustSize(10)
+    paddingRight: adjustSize(10),
   },
   modeBtn: {
     marginTop: adjustSize(10),
     marginBottom: adjustSize(10),
-    width: "33.333333%"
+    width: "33.333333%",
   },
   modeImage: {
     width: adjustSize(52),
-    height: adjustSize(52)
+    height: adjustSize(52),
   },
   target: {
     marginTop: adjustSize(12),
@@ -1055,22 +1059,22 @@ const Styles = StyleSheet.create({
     paddingBottom: adjustSize(25),
     paddingLeft: adjustSize(20),
     paddingRight: adjustSize(20),
-    borderRadius: adjustSize(12)
+    borderRadius: adjustSize(12),
   },
   targetTitle: {
     display: "flex",
     flexDirection: "row",
     height: adjustSize(20),
     lineHeight: adjustSize(20),
-    alignItems: "center"
+    alignItems: "center",
   },
   targetText: {
     fontSize: adjustSize(14),
-    color: "#000000"
+    color: "#000000",
   },
   targetValue: {
     color: "#000000",
     fontSize: adjustSize(12),
-    opacity: 0.4
-  }
+    opacity: 0.4,
+  },
 });

@@ -5,11 +5,11 @@ function localized() {
   switch (lang) {
     default:
       return {
-        privacyURL: require('./policy_zh.html'),
-        agreementURL: '',
-        hideAgreement: true,
-        experiencePlanURL: '',
-        hideUserExperiencePlan: true
+        privacyURL: require("./policy_zh.html"),
+        agreementURL: "",
+        hideAgreement: false,
+        experiencePlanURL: "",
+        hideUserExperiencePlan: false,
       };
   }
 }

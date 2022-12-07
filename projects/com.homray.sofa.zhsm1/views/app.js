@@ -12,8 +12,20 @@ import {
   ShadowPropTypesIOS,
 } from "react-native";
 import { SafeAreaView } from "react-navigation";
-import { Device, Service, DeviceEvent, PackageEvent, Host } from "miot";
-import { LoadingDialog } from "miot/ui";
+import {
+  Device,
+  Service,
+  DeviceEvent,
+  PackageEvent,
+  Host,
+  Bluetooth,
+  BluetoothEvent,
+  Util,
+  Package,
+} from "miot";
+import { LoadingDialog, MessageDialog } from "miot/ui";
+import Switch from "miot/ui/Switch";
+
 import { SlideGear } from "miot/ui/Gear";
 import PluginStrings from "../resources/strings";
 import getPercent from "../modules/getPercent";
@@ -24,6 +36,7 @@ import {
   PROTOCOLCACHEKEY,
   DeviceID,
   defaultPowerOnStateKey,
+  indicatorLightKey,
   SwitchKey,
   rangeKey,
   adjustSize,
@@ -43,36 +56,23 @@ import CountdownImage from "../components/countdown";
 import ImageButton from "../components/imageButton";
 import TitledImageButton from "../components/titledImageButton";
 
-import currentBg from "./app/current.png";
 import startOn from "./app/startOn.png";
 import startOff from "./app/startOff.png";
-import pauseOn from "./app/pauseOn.png";
-import pauseOff from "./app/pauseOff.png";
-import lie_sel from "./app/lie_sel.png";
-import lie_unsel from "./app/lie_unsel.png";
-import Movie_sel from "./app/Movie_sel.png";
-import Movie_unsel from "./app/Movie_unsel.png";
-import music_sel from "./app/music_sel.png";
-import music_unsel from "./app/music_unsel.png";
-import read_sel from "./app/read_sel.png";
-import read_unsel from "./app/read_unsel.png";
-import sit_sel from "./app/sit_sel.png";
-import sit_unsel from "./app/sit_unsel.png";
-import network_sel from "./app/network_sel.png";
-import network_unsel from "./app/network_unsel.png";
+import bgOff from "../resources/images/BG-OFF.png";
+import bgOn from "../resources/images/BG-ON.png";
+import light_off from "../resources/images/light_off.png";
+import light_on from "../resources/images/light_on.png";
+import power_off from "../resources/images/power_off.png";
+import power_on from "../resources/images/power_on.png";
 
 const { width } = Dimensions.get("screen");
 
 const window = Dimensions.get("window");
+
 const isIphoneX =
   Platform.OS === "ios" && window.width === 375 && window.height === 812;
 
-// const DeviceButton = ImageButton(DeviceImage);
-const TitledTiming = TitledImageButton(ImageButton(TimingImage));
-const TitledSwitch = TitledImageButton(ImageButton(SwitchImage));
-const TitledCountdown = TitledImageButton(ImageButton(CountdownImage));
-
-const params = [rangeKey, SwitchKey, defaultPowerOnStateKey];
+const params = [rangeKey, SwitchKey, defaultPowerOnStateKey, indicatorLightKey];
 
 export default class App extends Component {
   constructor(props) {
@@ -82,6 +82,7 @@ export default class App extends Component {
   paramInfos = {};
   getting = false;
   loop = null;
+  lastControl = 0;
   state = {
     on: false,
     timerInfo: "",
@@ -97,6 +98,7 @@ export default class App extends Component {
     dialogTimeout: 0,
     dialogTitle: "",
     status: {},
+    isOnline: true,
   };
 
   initProtocol = () => {
@@ -117,8 +119,6 @@ export default class App extends Component {
       })
       .catch((_) => {});
   };
-
-  switchProp = "";
 
   SwitchBaseProps = null;
 
@@ -220,8 +220,13 @@ export default class App extends Component {
 
     // 防止高频提交
     if (this.state.isHandling) {
+      this.showFailTips(
+        PluginStrings["Click too fast, please wait a second."],
+        500
+      );
       return;
     }
+
     this.setState({
       isHandling: true,
     });
@@ -234,14 +239,24 @@ export default class App extends Component {
       siid: newStatus[cmdParam].siid,
       value: cmdValue,
     });
+    clearTimeout(this.loop);
+    this.loop = null;
+
+    // 页面状态先变化
+    newStatus[cmdParam].value = cmdValue;
+    this.setState({ status: newStatus });
+
+    // 记录控制时间戳
+    this.lastControl = new Date().valueOf();
     console.log(controlParams, "发送控制命令参数-------------");
+    // 控制后2秒查一下
+    this.loop = setTimeout(() => {
+      this.getDeviceProps();
+    }, 2500);
     Service.spec
       .setPropertiesValue([Object.assign({ did: DeviceID }, controlParams)])
       .then((res) => {
         let code = res[0].code;
-        this.setState({
-          isHandling: false,
-        });
         // 1表示处理中，这里不处理，等消息推送
         if (code === 1) {
           return;
@@ -251,16 +266,12 @@ export default class App extends Component {
           newStatus[cmdParam].value = cmdValue;
           this.setState({ status: newStatus });
           this.dismissTips();
-          this.getDeviceProps();
           return;
         }
         console.log(res, "控制命令失败结果-------------");
         this.showFailTips(LocalizedString.failed());
       })
       .catch((error) => {
-        this.setState({
-          isHandling: false,
-        });
         console.log(error, "控制命令失败结果-------------");
         this.showFailTips(LocalizedString.failed());
       })
@@ -269,10 +280,6 @@ export default class App extends Component {
           isHandling: false,
         });
       });
-  };
-
-  switch = (on) => {
-    this.control({ on });
   };
 
   getDeviceProps = (cb) => {
@@ -293,12 +300,26 @@ export default class App extends Component {
     Service.spec
       .getPropertiesValue(propertys)
       .then((res) => {
-        let status = this.formatDeviceProps(res);
-        console.log(status, "查询状态成功-------------");
-        if (JSON.stringify(status) !== JSON.stringify(this.state.status)) {
+        let newStatus = this.formatDeviceProps(res);
+        const isChange =
+          JSON.stringify(newStatus) !== JSON.stringify(this.state.status);
+        clearTimeout(this.loop);
+        this.loop = null;
+
+        const resTime = new Date().valueOf();
+        const isPrevGet = this.lastControl && resTime < this.lastControl;
+        if (isPrevGet) {
+          console.log("是上一次的查询请求-------------");
+          return;
+        }
+
+        if (isChange) {
+          console.log(newStatus, "查询状态有变化-------------");
           this.setState({
-            status,
+            status: newStatus,
           });
+        } else {
+          console.log("查询状态没没没没没没没有变化-------------");
         }
         if (typeof cb === "function") {
           cb(res);
@@ -308,7 +329,7 @@ export default class App extends Component {
         console.log(error, "查询状态失败-------------");
       })
       .finally(() => {
-        this.getting = true;
+        this.getting = false;
       });
   };
 
@@ -524,18 +545,9 @@ export default class App extends Component {
     for (const key in newStatus) {
       const param = newStatus[key];
       const value = message.get(`prop.${param.siid}.${param.piid}`);
-      if (value) {
-        // 当当前行程发生变化、目前行程与之同步
-        if (
-          param.siid === 4 &&
-          param.piid === 2 &&
-          value[0] !== this.state.status["target-trip"].value
-        ) {
-          // this.control({ "target-trip": value[0] });
-          newStatus["target-trip"].value = value[0];
-        }
+      if (value && !this.loop) {
         newStatus[key].value = value[0];
-        console.info(param, value, "-------------状态有新的变化");
+        console.info(param, value, "from websocket-------------状态有新的变化");
         this.setState({ status: newStatus });
       }
     }
@@ -572,6 +584,11 @@ export default class App extends Component {
         }
       }
     );
+    setTimeout(() => {
+      this.setState({
+        isOnline: Device.isOnline,
+      });
+    }, 10);
   }
 
   componentWillUnmount() {
@@ -593,12 +610,6 @@ export default class App extends Component {
     let {
       on,
       timerInfo,
-      timingTitle,
-      timingActive,
-      countdownTitle,
-      countdownActive,
-      switchTitle,
-      containerBackgroundColor,
       supportBrightness,
       supportTemperature,
       brightness,
@@ -646,287 +657,138 @@ export default class App extends Component {
       temperatureMin,
       temperatureMax,
     };
-    const isOn = status["on"] && status["on"].value;
-
-    const StartButton = TitledImageButton(
+    const isSwitchOn = status[SwitchKey] && status[SwitchKey].value;
+    const isDefaultPowerOnStateKeyOn =
+      status[defaultPowerOnStateKey] &&
+      status[defaultPowerOnStateKey].value === 1;
+    const isIndicatorLightOn =
+      status[indicatorLightKey] && status[indicatorLightKey].value === true;
+    const PowerButton = TitledImageButton(
       ImageButton(() => (
         <View>
           <Image
-            source={isOn ? startOn : startOff}
-            style={isOn ? Styles.currentStartImage : Styles.currentPauseImage}
+            source={isSwitchOn ? power_on : power_off}
+            style={Styles.buttonImage}
           />
         </View>
       ))
     );
-    const PauseButton = TitledImageButton(
+    const IndicatorLightButton = TitledImageButton(
       ImageButton(() => (
         <View>
           <Image
-            source={!isOn ? pauseOn : pauseOff}
-            style={!isOn ? Styles.currentStartImage : Styles.currentPauseImage}
+            source={isIndicatorLightOn ? light_on : light_off}
+            style={Styles.buttonImage}
           />
         </View>
       ))
     );
-    const DefaultOnButton = TitledImageButton(
-      ImageButton(() => (
-        <View>
-          <Image
-            source={
-              status["default-power-on-state"] &&
-              status["default-power-on-state"].value === 1
-                ? startOn
-                : startOff
-            }
-            style={
-              status["default-power-on-state"] &&
-              status["default-power-on-state"].value === 1
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const DefaultOffButton = TitledImageButton(
-      ImageButton(() => (
-        <View>
-          <Image
-            source={
-              status["default-power-on-state"] &&
-              status["default-power-on-state"].value === 0
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["default-power-on-state"] &&
-              status["default-power-on-state"].value === 0
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const RangeButton10 = TitledImageButton(
-      ImageButton(({ title }) => (
-        <View>
-          <Image
-            source={
-              status["range"] && status["range"].value === 10
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["range"] && status["range"].value === 10
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const RangeButton30 = TitledImageButton(
-      ImageButton(({ title }) => (
-        <View>
-          <Image
-            source={
-              status["range"] && status["range"].value === 30
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["range"] && status["range"].value === 30
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const RangeButton35 = TitledImageButton(
-      ImageButton(({ title }) => (
-        <View>
-          <Image
-            source={
-              status["range"] && status["range"].value === 35
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["range"] && status["range"].value === 35
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const RangeButton20 = TitledImageButton(
-      ImageButton(({ title }) => (
-        <View>
-          <Image
-            source={
-              status["range"] && status["range"].value === 20
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["range"] && status["range"].value === 20
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    const RangeButton25 = TitledImageButton(
-      ImageButton(({ title }) => (
-        <View>
-          <Image
-            source={
-              status["range"] && status["range"].value === 25
-                ? pauseOn
-                : pauseOff
-            }
-            style={
-              status["range"] && status["range"].value === 25
-                ? Styles.currentStartImage
-                : Styles.currentPauseImage
-            }
-          />
-        </View>
-      ))
-    );
-    console.log(status, "status");
     return (
       <Animated.View style={[Styles.container]}>
+        {!this.state.isOnline && <View style={Styles.mask}></View>}
+        <View style={Styles.bg}>
+          <Image style={Styles.bgImage} source={isSwitchOn ? bgOn : bgOff} />
+        </View>
+
         <SafeAreaView style={Styles.safearea}>
           <Navigator navigation={this.props.navigation} />
           <View style={Styles.containerInner}>
-            <View style={Styles.main}>
-              <Text>开关</Text>
-              <View style={Styles.startAndPause}>
-                <View
-                  style={
-                    isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <StartButton
-                    on={isOn}
-                    disabled={!!this.isHandling}
-                    title={PluginStrings.on}
-                    direction="row"
-                    onPress={() => this.switch(true)}
-                  />
-                </View>
-                <View style={Styles.startAndPause_line}></View>
-                <View
-                  style={
-                    !isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <PauseButton
-                    on={!isOn}
-                    disabled={!!this.isHandling}
-                    title={PluginStrings.off}
-                    direction="row"
-                    onPress={() => this.switch(false)}
-                  />
-                </View>
+            <Text style={Styles.currentText1}>
+              {status.hasOwnProperty(SwitchKey)
+                ? isSwitchOn
+                  ? PluginStrings["On"]
+                  : PluginStrings["Off"]
+                : "--"}
+            </Text>
+            <Text style={Styles.currentText2}>
+              {PluginStrings["Current power status"]}
+            </Text>
+            <View style={Styles.status}>
+              <View style={Styles.status1}>
+                <Text style={Styles.currentText3}>
+                  {status.hasOwnProperty(defaultPowerOnStateKey)
+                    ? isDefaultPowerOnStateKeyOn
+                      ? PluginStrings["Remain"]
+                      : PluginStrings["Off"]
+                    : "--"}
+                </Text>
+                <Text style={Styles.currentText4}>
+                  {PluginStrings["Power on status"]}
+                </Text>
               </View>
-
-              <Text>默认上电状态 </Text>
-              <View style={Styles.startAndPause}>
-                <View
-                  style={
-                    !isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <DefaultOnButton
-                    on={
-                      status["default-power-on-state"] &&
-                      status["default-power-on-state"].value === 1
-                    }
-                    disabled={!!this.isHandling}
-                    title={"记忆"}
-                    direction="row"
-                    onPress={() =>
-                      this.control({ "default-power-on-state": 1 })
-                    }
-                  />
-                </View>
-                <View style={Styles.startAndPause_line}></View>
-
-                <View
-                  style={
-                    isOn
-                      ? Styles.startAndPause_isStart
-                      : Styles.startAndPause_isPause
-                  }
-                >
-                  <DefaultOffButton
-                    on={
-                      status["default-power-on-state"] &&
-                      status["default-power-on-state"].value === 0
-                    }
-                    disabled={!!this.isHandling}
-                    title={"关闭"}
-                    direction="row"
-                    onPress={() =>
-                      this.control({ "default-power-on-state": 0 })
-                    }
-                  />
-                </View>
-              </View>
-
-              <Text>距离 </Text>
-              <View style={Styles.startAndPause}>
-                <RangeButton10
-                  on={status["range"] && status["range"].value === 10}
-                  disabled={!!this.isHandling}
-                  title={"10"}
-                  direction="row"
-                  onPress={() => this.control({ range: 10 })}
-                />
-                <RangeButton20
-                  on={status["range"] && status["range"].value === 20}
-                  disabled={!!this.isHandling}
-                  title={"20"}
-                  direction="row"
-                  onPress={() => this.control({ range: 20 })}
-                />
-                <RangeButton25
-                  on={status["range"] && status["range"].value === 25}
-                  disabled={!!this.isHandling}
-                  title={"25"}
-                  direction="row"
-                  onPress={() => this.control({ range: 25 })}
-                />
-                <RangeButton30
-                  on={status["range"] && status["range"].value === 30}
-                  disabled={!!this.isHandling}
-                  title={"30"}
-                  direction="row"
-                  onPress={() => this.control({ range: 30 })}
-                />
-                <RangeButton35
-                  on={status["range"] && status["range"].value === 35}
-                  disabled={!!this.isHandling}
-                  title={"35"}
-                  direction="row"
-                  onPress={() => this.control({ range: 35 })}
-                />
+              <View style={Styles.line}></View>
+              <View style={Styles.status2}>
+                <Text style={Styles.currentText3}>
+                  {status.hasOwnProperty(indicatorLightKey)
+                    ? status[indicatorLightKey].value
+                      ? PluginStrings["On"]
+                      : PluginStrings["Off"]
+                    : "--"}
+                </Text>
+                <Text style={Styles.currentText4}>
+                  {PluginStrings["Atmosphere lamp"]}
+                </Text>
               </View>
             </View>
+            <View
+              style={Styles.switch}
+              onTouchStart={() => this.control({ [SwitchKey]: !isSwitchOn })}
+            >
+              <PowerButton
+                on={isSwitchOn}
+                disabled={!!this.isHandling}
+                title={PluginStrings["Switch"]}
+                direction="row"
+                // onPress={() => this.control({ [SwitchKey]: !isSwitchOn })}
+              />
+            </View>
+            {/* <View style={Styles.indicatorLight}>
+              <IndicatorLightButton
+                on={isIndicatorLightOn}
+                disabled={true}
+                title={"氛围灯"}
+                direction="row"
+              />
+              <View
+                style={{
+                  marginLeft: "auto",
+                  height: adjustSize(25),
+                  marginTop: adjustSize(7.5),
+                }}
+              >
+                <Switch
+                  style={{
+                    width: adjustSize(50),
+                    height: adjustSize(25),
+                  }}
+                  onTintColor="rgb(50,189,192)"
+                  tintColor="rgb(229,229,229)"
+                  value={isIndicatorLightOn}
+                  onValueChange={(value) =>
+                    this.control({ [indicatorLightKey]: !!value })
+                  }
+                />
+              </View>
+            </View> */}
           </View>
         </SafeAreaView>
+        <MessageDialog
+          title={PluginStrings["Device is offline"]}
+          message={
+            PluginStrings[
+              "The device is offline, please check whether the device is connected to the Bluetooth Mesh gateway!"
+            ]
+          }
+          confirm={PluginStrings["Confirm"]}
+          timeout={10000}
+          onConfirm={() => {
+            Package.exit();
+          }}
+          onDismiss={() => {
+            Package.exit();
+          }}
+          visible={!this.state.isOnline}
+        />
         <LoadingDialog
           visible={showDialog}
           message={dialogTitle}
@@ -943,6 +805,73 @@ const Styles = StyleSheet.create({
     justifyContent: "space-evenly",
     alignItems: "center",
   },
+
+  bg: {
+    position: "absolute",
+    zIndex: 0,
+  },
+
+  bgImage: {
+    height: adjustSize(400),
+    width: adjustSize(360),
+  },
+  buttonImage: { width: adjustSize(40), height: adjustSize(40) },
+  currentText1: {
+    fontSize: adjustSize(36),
+    color: "#000000",
+  },
+  currentText2: {
+    marginTop: adjustSize(4),
+    opacity: 0.6,
+    fontSize: adjustSize(12),
+    color: "#000000",
+  },
+  currentText3: { fontSize: adjustSize(28), color: "#000000", opacity: 0.8 },
+  currentText4: { fontSize: adjustSize(12), color: "#000000", opacity: 0.6 },
+  status: {
+    marginTop: adjustSize(24),
+    height: adjustSize(80),
+    display: "flex",
+    flexDirection: "row",
+    position: "relative",
+    textAlign: "center",
+  },
+  status1: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: "50%",
+  },
+  line: {
+    position: "absolute",
+    width: adjustSize(1),
+    height: adjustSize(40),
+    left: "50%",
+    marginLeft: adjustSize(-0.5),
+    backgroundColor: "rgba(229,229,229,1)",
+    top: adjustSize(20),
+  },
+  status2: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: "50%",
+  },
+  switch: {
+    display: "flex",
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    width: "100%",
+    borderRadius: adjustSize(12),
+  },
+  indicatorLight: {
+    display: "flex",
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    height: adjustSize(80),
+    width: "100%",
+    padding: adjustSize(20),
+    borderRadius: adjustSize(12),
+    marginTop: adjustSize(12),
+  },
   safearea: {
     flex: 1,
     width: "100%",
@@ -950,9 +879,8 @@ const Styles = StyleSheet.create({
   containerInner: {
     flex: 1,
     width: "100%",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: adjustSize(32),
+    paddingTop: adjustSize(80),
     marginTop: 0,
     marginBottom: adjustSize(40),
     paddingLeft: adjustSize(12),
@@ -960,6 +888,7 @@ const Styles = StyleSheet.create({
   },
   main: {
     flex: 1,
+    zIndex: 10,
   },
   sliders: {
     marginTop: adjustSize(-15),
@@ -997,140 +926,14 @@ const Styles = StyleSheet.create({
   sliderTextOff: {
     color: "#ddd",
   },
-  buttons: {
-    width: adjustSize(321),
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  current: {
-    display: "flex",
-    flexDirection: "row",
-  },
-  currentWord: {
-    color: "#000000",
-    opacity: 0.6,
-    fontSize: adjustSize(14),
-  },
-  currentRate: {
-    color: "#000000",
-    fontSize: adjustSize(50),
-    marginTop: adjustSize(12),
-  },
-  unit: {
-    fontSize: adjustSize(24),
-  },
-  currentImg: {
-    width: adjustSize(160),
-    height: adjustSize(120),
-  },
-  currentLeft: {
-    paddingLeft: adjustSize(36),
-    width: "50%",
-    justifyContent: "center",
-    // alignItems: "center"
-  },
-  currentRight: {
-    width: "50%",
-  },
-  startAndPause: {
-    marginTop: adjustSize(24),
-    height: adjustSize(80),
-    backgroundColor: "#ffffff",
-    borderRadius: adjustSize(12),
-    display: "flex",
-    flexDirection: "row",
-    position: "relative",
-  },
-  startAndPause_line: {
-    position: "absolute",
-    width: adjustSize(1),
-    height: adjustSize(40),
-    left: "50%",
-    marginLeft: adjustSize(-0.5),
-    backgroundColor: "rgba(229,229,229,1)",
-    top: adjustSize(20),
-  },
-  startAndPause_isStart: {
-    width: "50%",
-    justifyContent: "center",
-    alignItems: "center",
-    fontSize: adjustSize(13),
-    display: "flex",
-    flexDirection: "row",
-    color: "#999999",
-  },
-  startAndPause_isPause: {
-    width: "50%",
-    justifyContent: "center",
-    alignItems: "center",
-    fontSize: adjustSize(13),
-    color: "#999999",
-    display: "flex",
-    flexDirection: "row",
-  },
-  currentStartText: {
-    fontSize: adjustSize(13),
-    color: "#999999",
-    marginLeft: adjustSize(16),
-  },
-  currentPauseText: {
-    fontSize: adjustSize(13),
-    color: "#999999",
-    marginLeft: adjustSize(16),
-  },
-  currentStartImage: {
-    width: adjustSize(40),
-    height: adjustSize(40),
-  },
-  currentPauseImage: {
-    width: adjustSize(40),
-    height: adjustSize(40),
-  },
-  modes: {
+  mask: {
+    height: "100%",
     width: "100%",
-    marginTop: adjustSize(12),
-    backgroundColor: "#ffffff",
-    borderRadius: adjustSize(12),
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingTop: adjustSize(8),
-    paddingBottom: adjustSize(12),
-    paddingLeft: adjustSize(10),
-    paddingRight: adjustSize(10),
-  },
-  modeBtn: {
-    marginTop: adjustSize(10),
-    marginBottom: adjustSize(10),
-    width: "33.333333%",
-  },
-  modeImage: {
-    width: adjustSize(52),
-    height: adjustSize(52),
-  },
-  target: {
-    marginTop: adjustSize(12),
-    backgroundColor: "#ffffff",
-    paddingTop: adjustSize(18),
-    paddingBottom: adjustSize(25),
-    paddingLeft: adjustSize(20),
-    paddingRight: adjustSize(20),
-    borderRadius: adjustSize(12),
-  },
-  targetTitle: {
-    display: "flex",
-    flexDirection: "row",
-    height: adjustSize(20),
-    lineHeight: adjustSize(20),
-    alignItems: "center",
-  },
-  targetText: {
-    fontSize: adjustSize(14),
-    color: "#000000",
-  },
-  targetValue: {
-    color: "#000000",
-    fontSize: adjustSize(12),
-    opacity: 0.4,
+    position: "absolute",
+    left: 0,
+    top: 0,
+    backgroundColor: "#000",
+    opacity: 0.3,
+    zIndex: 100001,
   },
 });

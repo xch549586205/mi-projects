@@ -73,14 +73,14 @@ export default class Setting extends React.Component {
         if (cache) {
           return;
         }
-        Host.ui
-          .alertLegalInformationAuthorization(Protocol)
-          .then((agreed) => {
-            if (agreed) {
-              Host.storage.set(PROTOCOLCACHEKEY, true);
-            }
-          })
-          .catch((_) => {});
+        // Host.ui
+        //   .alertLegalInformationAuthorization(Protocol)
+        //   .then((agreed) => {
+        //     if (agreed) {
+        //       Host.storage.set(PROTOCOLCACHEKEY, true);
+        //     }
+        //   })
+        //   .catch((_) => {});
       })
       .catch((_) => {});
   };

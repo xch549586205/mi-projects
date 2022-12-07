@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+ import React, { Component } from "react";
 import { createStackNavigator } from "react-navigation";
 import { Package, PackageEvent, Host } from "miot";
 import { MoreSetting } from "miot/ui/CommonSetting";

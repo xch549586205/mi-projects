@@ -18,11 +18,12 @@ import {
   DeviceEvent,
   PackageEvent,
   Host,
+  Package,
   Bluetooth,
   BluetoothEvent,
   Util,
 } from "miot";
-import { LoadingDialog } from "miot/ui";
+import { LoadingDialog, MessageDialog } from "miot/ui";
 import Switch from "miot/ui/Switch";
 
 import { SlideGear } from "miot/ui/Gear";
@@ -107,14 +108,14 @@ export default class App extends Component {
         if (cache) {
           return;
         }
-        Host.ui
-          .alertLegalInformationAuthorization(Protocol)
-          .then((agreed) => {
-            if (agreed) {
-              Host.storage.set(PROTOCOLCACHEKEY, true);
-            }
-          })
-          .catch((_) => {});
+        // Host.ui
+        //   .alertLegalInformationAuthorization(Protocol)
+        //   .then((agreed) => {
+        //     if (agreed) {
+        //       Host.storage.set(PROTOCOLCACHEKEY, true);
+        //     }
+        //   })
+        //   .catch((_) => {});
       })
       .catch((_) => {});
   };
@@ -220,7 +221,10 @@ export default class App extends Component {
     // 防止高频提交
     if (this.state.isHandling) {
       console.log("上一条控制指令处理中，本次点击控制不生效--------------");
-      this.showFailTips("点击太快，请稍候...", 500);
+      this.showFailTips(
+        PluginStrings["Click too fast, please wait a second."],
+        500
+      );
       return;
     }
 
@@ -690,24 +694,40 @@ export default class App extends Component {
           <Navigator navigation={this.props.navigation} />
           <View style={Styles.containerInner}>
             <Text style={Styles.currentText1}>
-              {isSwitchOn ? "开启" : "关闭"}
+              {!status[SwitchKey]
+                ? "--"
+                : isSwitchOn
+                ? PluginStrings["On"]
+                : PluginStrings["Off"]}
             </Text>
-            <Text style={Styles.currentText2}>当前电源</Text>
+            <Text style={Styles.currentText2}>
+              {PluginStrings["Current power status"]}
+            </Text>
             <View style={Styles.status}>
               <View style={Styles.status1}>
                 <Text style={Styles.currentText3}>
-                  {isDefaultPowerOnStateKeyOn ? "记忆" : "关闭"}
+                  {!status[defaultPowerOnStateKey]
+                    ? "--"
+                    : isDefaultPowerOnStateKeyOn
+                    ? PluginStrings["Remain"]
+                    : PluginStrings["Off"]}
                 </Text>
-                <Text style={Styles.currentText4}>上电状态</Text>
+                <Text style={Styles.currentText4}>
+                  {PluginStrings["Power on status"]}
+                </Text>
               </View>
               <View style={Styles.line}></View>
               <View style={Styles.status2}>
                 <Text style={Styles.currentText3}>
-                  {status[indicatorLightKey] && status[indicatorLightKey].value
-                    ? "开启"
-                    : "关闭"}
+                  {!status[indicatorLightKey]
+                    ? "--"
+                    : status[indicatorLightKey].value
+                    ? PluginStrings["On"]
+                    : PluginStrings["Off"]}
                 </Text>
-                <Text style={Styles.currentText4}>氛围灯</Text>
+                <Text style={Styles.currentText4}>
+                  {PluginStrings["Atmosphere lamp"]}
+                </Text>
               </View>
             </View>
             <View
@@ -717,7 +737,7 @@ export default class App extends Component {
               <PowerButton
                 on={isSwitchOn}
                 disabled={!!this.isHandling}
-                title={"开关"}
+                title={PluginStrings["Switch"]}
                 direction="row"
                 // onPress={() => this.control({ [SwitchKey]: !isSwitchOn })}
               />
@@ -757,6 +777,20 @@ export default class App extends Component {
           visible={showDialog}
           message={dialogTitle}
           timeout={dialogTimeout}
+        />
+        <MessageDialog
+          title={PluginStrings["Device is offline"]}
+          message={
+            PluginStrings[
+              "The device is offline, please check whether the device is connected to the Bluetooth Mesh gateway!"
+            ]
+          }
+          confirm={PluginStrings["Confirm"]}
+          timeout={10000}
+          onConfirm={() => {
+            Package.exit();
+          }}
+          visible={!this.state.isOnline}
         />
       </Animated.View>
     );

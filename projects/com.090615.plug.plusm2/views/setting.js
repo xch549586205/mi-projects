@@ -72,14 +72,14 @@ export default class Setting extends React.Component {
         if (cache) {
           return;
         }
-        Host.ui
-          .alertLegalInformationAuthorization(Protocol)
-          .then((agreed) => {
-            if (agreed) {
-              Host.storage.set(PROTOCOLCACHEKEY, true);
-            }
-          })
-          .catch((_) => {});
+        // Host.ui
+        //   .alertLegalInformationAuthorization(Protocol)
+        //   .then((agreed) => {
+        //     if (agreed) {
+        //       Host.storage.set(PROTOCOLCACHEKEY, true);
+        //     }
+        //   })
+        //   .catch((_) => {});
       })
       .catch((_) => {});
   };
@@ -382,8 +382,8 @@ export default class Setting extends React.Component {
     const isDefaultPowerOnStateKeyText =
       status[defaultPowerOnStateKey] &&
       status[defaultPowerOnStateKey].value === 1
-        ? "记忆"
-        : "关闭";
+        ? PluginStrings["Remain"]
+        : PluginStrings["Off"];
     const rangeVale = status[rangeKey] ? status[rangeKey].value : 0;
     let { showDialog, dialogTimeout, dialogTitle } = this.state;
     // 显示部分一级菜单项
@@ -417,7 +417,7 @@ export default class Setting extends React.Component {
             </Text>
           </View>
           <ListItem
-            title="上电状态"
+            title={PluginStrings["Power on status"]}
             value={isDefaultPowerOnStateKeyText}
             showSeparator={false}
             onPress={() => {
@@ -425,11 +425,11 @@ export default class Setting extends React.Component {
             }}
           />
           <ListItem
-            title="氛围灯"
+            title={PluginStrings["Atmosphere lamp"]}
             value={
               status[indicatorLightKey] && status[indicatorLightKey].value
-                ? "开启"
-                : "关闭"
+                ? PluginStrings["On"]
+                : PluginStrings["Off"]
             }
             onPress={() => this.setState({ visible2: true, visible1: false })}
           />
@@ -444,13 +444,13 @@ export default class Setting extends React.Component {
         </ScrollView>
         <ChoiceDialog
           visible={this.state.visible1}
-          title={"上电状态设置"}
+          title={PluginStrings["Power on status set"]}
           options={[
             {
-              title: "关闭",
+              title: PluginStrings["Off"],
             },
             {
-              title: "记忆",
+              title: PluginStrings["Remain"],
             },
           ]}
           selectedIndexArray={[isDefaultPowerOnStateKeyValue ? 1 : 0]}
@@ -464,13 +464,13 @@ export default class Setting extends React.Component {
         />
         <ChoiceDialog
           visible={this.state.visible2}
-          title={"氛围灯开关"}
+          title={PluginStrings["Atmosphere lamp Switch"]}
           options={[
             {
-              title: "关闭",
+              title: PluginStrings["Off"],
             },
             {
-              title: "打开",
+              title: PluginStrings["On"],
             },
           ]}
           selectedIndexArray={[

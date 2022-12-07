@@ -97,14 +97,14 @@ export default class App extends Component {
         if (cache) {
           return;
         }
-        Host.ui
-          .alertLegalInformationAuthorization(Protocol)
-          .then((agreed) => {
-            if (agreed) {
-              Host.storage.set(PROTOCOLCACHEKEY, true);
-            }
-          })
-          .catch((_) => {});
+        // Host.ui
+        //   .alertLegalInformationAuthorization(Protocol)
+        //   .then((agreed) => {
+        //     if (agreed) {
+        //       Host.storage.set(PROTOCOLCACHEKEY, true);
+        //     }
+        //   })
+        //   .catch((_) => {});
       })
       .catch((_) => {});
   };
@@ -492,7 +492,15 @@ export default class App extends Component {
     let supports = {};
     let supportCount = 0;
     let paramInfos = getDefinitionWithKeyFromInstance(instance, params);
-    console.log(paramInfos, "设备参数信息返回结果paramInfos");
+    console.log(
+      paramInfos,
+      "设备参数信息返回结果paramInfos",
+      Device.isOnline() ? 1 : 2
+    );
+    console.log(
+      Device.isOffline(),
+      "isOnline000000000000000000000000000000000000000000"
+    );
     this.paramInfos = paramInfos;
     if (supportCount) {
       this.setState(supports);
